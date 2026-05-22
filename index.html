@@ -1,49 +1,49 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diep.io Mini - Sảnh Chờ</title>
+    <meta charset="UTF-8">
+    <title>Sảnh Chờ | Tien Nhat</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #eaeaea; font-family: sans-serif; }
-        h1 { font-size: 50px; color: #333; margin-bottom: 10px; text-shadow: 2px 2px 0 #fff; }
-        .currency-box { background: #fff; padding: 10px 25px; border-radius: 8px; border: 2px solid #ccc; font-size: 24px; font-weight: bold; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .currency-box span { color: #ff9800; }
-        .menu-container { display: flex; gap: 20px; }
-        .btn-map { padding: 15px 30px; font-size: 20px; font-weight: bold; color: white; background-color: #7289da; border: none; border-bottom: 5px solid #5266ab; border-radius: 8px; cursor: pointer; transition: transform 0.1s; }
-        .btn-map:active { transform: translateY(3px); border-bottom: 2px solid #5266ab; }
-        .btn-map.chess { background-color: #4CAF50; border-bottom-color: #388E3C; }
-        .btn-map.classes { background-color: #ff5050; border-bottom-color: #cc0000; }
-        .reset-btn { margin-top: 50px; padding: 10px 20px; font-size: 16px; color: #fff; background: #999; border: none; border-radius: 4px; cursor: pointer; }
-        .reset-btn:hover { background: #777; }
+        body { font-family: sans-serif; background: #2c2f33; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        h1 { color: #7289da; text-shadow: 2px 2px 0 #222; margin-bottom: 10px; }
+        .panel { background: #23272a; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .btn { padding: 12px 20px; font-size: 16px; font-weight: bold; color: white; background-color: #7289da; border: none; border-bottom: 4px solid #5266ab; border-radius: 4px; cursor: pointer; margin: 10px; width: 140px; }
+        .btn:active { transform: scale(0.98); border-bottom: 2px solid #5266ab; }
+        .skill-btn { background-color: #444; border-bottom: 4px solid #222; width: 100%; margin: 5px 0; }
+        .skill-btn.active { background-color: #43b581; border-bottom: 4px solid #2a7a55; }
     </style>
 </head>
 <body>
-    <h1>DIEP.IO MINI</h1>
-    
-    <div class="currency-box">
-        Kho Đồ: <span id="lobbyScraps">0</span> Mảnh
+    <h1 style="color: #7289da;">DIEP.IO|FANMAKE</h1>
+    <h3 style="color: #7289da;">CHỌN KỸ NĂNG (PHÍM Z)</h3>
+    <div class="panel">
+        <button class="btn skill-btn active" id="btn-glue" onclick="selectSkill('glue')">Bơm Keo (Chắn đạn)</button>
+        <button class="btn skill-btn" id="btn-dash" onclick="selectSkill('dash')">Tốc Biến (Lướt)</button>
+        <button class="btn skill-btn" id="btn-air" onclick="selectSkill('air')">Đạn Xuyên Thấu</button>
+        <button class="btn skill-btn" id="btn-immortal" onclick="selectSkill('immortal')">Bất Tử (5s)</button>
+        <button class="btn skill-btn" id="btn-adrenaline" onclick="selectSkill('adrenaline')">Adrenaline (X2 Tốc, Trâu bò, Hồi máu)</button>
+        <button class="btn skill-btn" id="btn-freeze" onclick="selectSkill('freeze')">Phù Thuỷ Băng (Đóng băng địch)</button>
+        <p style="color: #bbb; font-size: 14px; margin-top: 10px;">Mảnh xe tăng: <span id="scraps" style="color: #ff9800; font-weight: bold;">0</span></p>
     </div>
 
-    <div class="menu-container">
-        <button class="btn-map classes" onclick="window.location.href='classesMap.html'">Vào Map Mở (Classes)</button>
-        <button class="btn-map chess" onclick="window.location.href='chessmap.html'">Vào Map Bàn Cờ</button><br>
+    <h1>CHỌN MAP</h1>
+    <div>
+        <button class="btn" onclick="window.location.href='chessmap.html'">Map Bàn Cờ</button>
+        <button class="btn" onclick="window.location.href='classesMap.html'">Map Tự Do</button>
     </div>
+
     <script>
-        // Lấy tiền từ localStorage hiển thị ra Sảnh
-        let tankScraps = parseInt(localStorage.getItem('tankScraps')) || 0;
-        document.getElementById('lobbyScraps').innerText = tankScraps;
-
-        function resetTiền() {
-            if(confirm("Ông có chắc muốn xóa sạch Mảnh Xe Tăng cày lại từ đầu không?")) {
-                localStorage.setItem('tankScraps', 0);
-                location.reload();
-            }
+        document.getElementById('scraps').innerText = localStorage.getItem('tankScraps') || 0;
+        let currentSkill = localStorage.getItem('selectedSkill') || 'glue';
+        
+        function selectSkill(skill) {
+            currentSkill = skill;
+            localStorage.setItem('selectedSkill', skill);
+            document.querySelectorAll('.skill-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + skill).classList.add('active');
         }
-    </script><br>
-    <h4 style="color: #999;">crete: phamtiennhat369@gmail<br>
-    bản quyền: Matheus Valadares
-    </h4>
+        
+        selectSkill(currentSkill);
+    </script>
 </body>
 </html>
