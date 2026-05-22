@@ -1,58 +1,49 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sảnh Chờ - Diep.io | Tien Nhat</title>
+    <title>Diep.io Mini - Sảnh Chờ</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            display: flex; justify-content: center; align-items: center;
-            height: 100vh; background-color: #eaeaea; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-image: radial-gradient(#d5d5d5 1px, transparent 1px);
-            background-size: 20px 20px;
-        }
-        .menu-container {
-            background: white; padding: 40px 50px; border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; width: 400px;
-        }
-        h1 { color: #333; margin-bottom: 20px; font-size: 32px; }
-        .select-box {
-            width: 100%; padding: 12px; font-size: 16px; font-weight: bold;
-            color: #444; background-color: #f9f9f9;
-            border: 2px solid #ccc; border-radius: 5px; margin-bottom: 25px;
-            cursor: pointer; outline: none;
-        }
-        .btn-play {
-            width: 100%; padding: 15px; font-size: 20px; font-weight: bold; 
-            color: white; background-color: #86c953; 
-            border: none; border-bottom: 5px solid #6ab03b; 
-            border-radius: 5px; cursor: pointer; transition: 0.1s;
-        }
-        .btn-play:active { transform: translateY(3px); border-bottom: 2px solid #6ab03b; }
+        body { width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #eaeaea; font-family: sans-serif; }
+        h1 { font-size: 50px; color: #333; margin-bottom: 10px; text-shadow: 2px 2px 0 #fff; }
+        .currency-box { background: #fff; padding: 10px 25px; border-radius: 8px; border: 2px solid #ccc; font-size: 24px; font-weight: bold; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .currency-box span { color: #ff9800; }
+        .menu-container { display: flex; gap: 20px; }
+        .btn-map { padding: 15px 30px; font-size: 20px; font-weight: bold; color: white; background-color: #7289da; border: none; border-bottom: 5px solid #5266ab; border-radius: 8px; cursor: pointer; transition: transform 0.1s; }
+        .btn-map:active { transform: translateY(3px); border-bottom: 2px solid #5266ab; }
+        .btn-map.chess { background-color: #4CAF50; border-bottom-color: #388E3C; }
+        .btn-map.classes { background-color: #ff5050; border-bottom-color: #cc0000; }
+        .reset-btn { margin-top: 50px; padding: 10px 20px; font-size: 16px; color: #fff; background: #999; border: none; border-radius: 4px; cursor: pointer; }
+        .reset-btn:hover { background: #777; }
     </style>
 </head>
 <body>
-    <div class="menu-container">
-        <h1>DIEP.IO</h1>
-        <p style="margin-bottom: 20px; color: #666;">Xe tăng sẽ tự động di chuyển theo chuột</p>
-        
-        <div style="text-align: left; margin-bottom: 5px; font-weight: bold; color: #555;">CHỌN BẢN ĐỒ:</div>
-        <select id="mapSelect" class="select-box">
-            <option value="classesMap.html">Bản đồ classes</option>
-            <option value="chessmap.html">Bản đồ công trình kì lạ</option>
-        </select>
-
-        <button id="playBtn" class="btn-play">BẮT ĐẦU CHƠI</button>
+    <h1>DIEP.IO MINI</h1>
+    
+    <div class="currency-box">
+        Kho Đồ: <span id="lobbyScraps">0</span> Mảnh
     </div>
 
+    <div class="menu-container">
+        <button class="btn-map classes" onclick="window.location.href='classesMap.html'">Vào Map Mở (Classes)</button>
+        <button class="btn-map chess" onclick="window.location.href='chessmap.html'">Vào Map Bàn Cờ</button><br>
+    </div>
     <script>
-        document.getElementById('playBtn').addEventListener('click', () => {
-            const selectedFile = document.getElementById('mapSelect').value;
-            // Chuyển thẳng sang trang của map tương ứng
-            window.location.href = selectedFile;
-        });
-    </script>
+        // Lấy tiền từ localStorage hiển thị ra Sảnh
+        let tankScraps = parseInt(localStorage.getItem('tankScraps')) || 0;
+        document.getElementById('lobbyScraps').innerText = tankScraps;
+
+        function resetTiền() {
+            if(confirm("Ông có chắc muốn xóa sạch Mảnh Xe Tăng cày lại từ đầu không?")) {
+                localStorage.setItem('tankScraps', 0);
+                location.reload();
+            }
+        }
+    </script><br>
+    <h4 style="color: #999;">crete: phamtiennhat369@gmail<br>
+    bản quyền: Matheus Valadares
+    </h4>
 </body>
 </html>

@@ -2,13 +2,13 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Diep.io - Map Bàn Cờ (Vật Cản) | Tien Nhat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Map Bàn Cờ | Tien Nhat</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { width: 100%; height: 100%; overflow: hidden; background: #f4f4f4; font-family: sans-serif; }
         #gameCanvas { display: block; background: #eaeaea; cursor: crosshair; }
-        #ui { position: absolute; top: 20px; left: 20px; font-size: 20px; font-weight: bold; color: #333; pointer-events: none; text-shadow: 1px 1px 0 #fff; z-index: 10; line-height: 1.4; }
+        #ui { position: absolute; top: 20px; left: 20px; font-size: 20px; font-weight: bold; color: #333; pointer-events: none; text-shadow: 1px 1px 0 #fff; z-index: 10; line-height: 1.6; }
         #gameOver { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; font-weight: bold; color: #ff5050; display: none; text-shadow: 2px 2px 0 #fff; z-index: 20; text-align: center; }
         .btn-gameover { padding: 10px 20px; font-size: 18px; font-weight: bold; color: white; background-color: #7289da; border: none; border-bottom: 4px solid #5266ab; border-radius: 4px; cursor: pointer; margin: 5px; }
         .btn-gameover:active { transform: scale(0.98); border-bottom: 2px solid #5266ab; }
@@ -19,7 +19,8 @@
         Điểm số: <span id="score">0</span><br>
         Loại Tank: <span id="tankType" style="color: #00b2e6;">Basic</span><br>
         Máu: <span id="hp">100</span>/100<br>
-        <span style="font-size: 14px; color: #666;">Giữ SHIFT để chạy nhanh</span>
+        Mảnh xe tăng: <span id="scrapsVal" style="color: #ff9800;">0</span><br>
+        <span style="font-size: 14px; color: #666; font-weight: normal;">Giữ SHIFT để chạy nhanh</span>
     </div>
     <div id="gameOver">
         BẠN ĐÃ BỊ TIÊU DIỆT!<br>
@@ -30,6 +31,11 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
+        let tankScraps = parseInt(localStorage.getItem('tankScraps')) || 0;
+        
+        window.addEventListener('wheel', function(e) { if (e.ctrlKey) { e.preventDefault(); } }, { passive: false });
+        window.addEventListener('keydown', function(e) { if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '0')) { e.preventDefault(); } });
+        
         const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
         const mouse = { x: canvas.width / 2, y: canvas.height / 2, isDown: false }; const keys = { shift: false };
         window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
@@ -42,7 +48,6 @@
 
         let isGameOver = false; const bullets = [], targets = [], bots = [], healPacks = [];
         
-        // TẠO VẬT CẢN XẾP THÀNH BÀN CỜ (Chừa chỗ góc dưới phải)
         const obstacles = [];
         const gap = 250;  
         const size = 90;  
@@ -116,9 +121,7 @@
             draw() {
                 ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); ctx.beginPath();
                 for (let i = 0; i < this.sides; i++) { ctx.lineTo(this.radius * Math.cos(i * 2 * Math.PI / this.sides), this.radius * Math.sin(i * 2 * Math.PI / this.sides)); }
-                ctx.closePath(); ctx.fillStyle = this.color; ctx.fill(); ctx.strokeStyle = '#555'; ctx.lineWidth = 2; 
-                ctx.stroke(); // <--- CHÍNH LÀ CHỖ NÀY BỊ THIẾU CHỮ "ctx." HỒI NÃY ĐÂY!
-                
+                ctx.closePath(); ctx.fillStyle = this.color; ctx.fill(); ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.stroke(); 
                 if (this.hp < this.maxHp) { ctx.rotate(-this.angle); ctx.fillStyle = '#555'; ctx.fillRect(-15, this.radius + 5, 30, 4); ctx.fillStyle = '#86c953'; ctx.fillRect(-15, this.radius + 5, 30 * (Math.max(0, this.hp) / this.maxHp), 4); } 
                 ctx.restore();
             }
@@ -137,13 +140,9 @@
 
         setInterval(() => { if (targets.length < 25) targets.push(new TargetShape()); }, 500);
         setInterval(() => { 
-            let bX, bY, bValid = false;
-            while(!bValid) {
-                bX = Math.random() * canvas.width; bY = Math.random() * canvas.height; bValid = true;
-                if (bX > canvas.width - 200 && bY > canvas.height - 200) { bValid = false; continue; }
-                for (const obs of obstacles) { if (rectCircleCollide({x:bX, y:bY, radius:25}, obs)) { bValid = false; break; } }
+            if (bots.length < 2) {
+                let bX = canvas.width - 150; let bY = 150; bots.push(new Tank(bX, bY, false)); 
             }
-            if (bots.length < 4) bots.push(new Tank(bX, bY, false)); 
         }, 3000);
         setInterval(() => { if (healPacks.length < 4) healPacks.push(new HealPack()); }, 10000);
 
@@ -159,12 +158,8 @@
         }
 
         function animate() {
-            if (isGameOver) return; 
-            requestAnimationFrame(animate); 
-            
-            // ÉP KHUNG HÌNH LUÔN THẲNG ĐỨNG ĐỂ PHÒNG TRƯỜNG HỢP LỖI
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            if (isGameOver) return; requestAnimationFrame(animate); 
+            ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); 
             
             drawGrid();
 
@@ -175,7 +170,10 @@
             if (dist > 10) tryMove(player, (dx / dist) * player.speed, (dy / dist) * player.speed);
             if (mouse.isDown) player.shoot(); player.updateEvolution();
 
-            document.getElementById('score').innerText = player.score; document.getElementById('tankType').innerText = player.type; document.getElementById('hp').innerText = Math.max(0, Math.floor(player.hp));
+            document.getElementById('score').innerText = player.score; 
+            document.getElementById('tankType').innerText = player.type; 
+            document.getElementById('hp').innerText = Math.max(0, Math.floor(player.hp));
+            document.getElementById('scrapsVal').innerText = tankScraps; 
 
             for (let i = healPacks.length - 1; i >= 0; i--) { healPacks[i].draw(); if (getDistance(player.x, player.y, healPacks[i].x, healPacks[i].y) < player.radius + healPacks[i].radius) { player.hp = Math.min(player.maxHp, player.hp + healPacks[i].healAmount); healPacks.splice(i, 1); } }
             player.draw();
@@ -187,7 +185,14 @@
                 else bot.targetEntity = null;
                 
                 if (bot.targetEntity) { bot.angle = Math.atan2(bot.targetEntity.y - bot.y, bot.targetEntity.x - bot.x); const distToTarget = getDistance(bot.x, bot.y, bot.targetEntity.x, bot.targetEntity.y); if (distToTarget > 150) tryMove(bot, Math.cos(bot.angle) * bot.speed, Math.sin(bot.angle) * bot.speed); if (distToTarget < 500) bot.shoot(); }
-                bot.updateEvolution(); bot.draw(); if (bot.hp <= 0) { player.score += 100; bots.splice(i, 1); }
+                bot.updateEvolution(); bot.draw(); 
+                
+                if (bot.hp <= 0) { 
+                    player.score += 100; 
+                    tankScraps += 10; 
+                    localStorage.setItem('tankScraps', tankScraps);
+                    bots.splice(i, 1); 
+                }
             }
 
             targets.forEach(t => t.draw());
