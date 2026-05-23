@@ -51,6 +51,30 @@
         let isGameOver = false; const bullets = [], targets = [], bots = [], healPacks = [];
         
         const obstacles = [];
+        // --- HỆ THỐNG TRỤ NHÀ MOBA ---
+        let playerTower = { x: 150, y: canvas.height - 150, hp: 2000, maxHp: 2000, radius: 65, color: '#5266ab' };
+        let botTower = { x: canvas.width - 150, y: 150, hp: 2000, maxHp: 2000, radius: 65, color: '#cc0000' };
+
+        // Đưa hàm vẽ ra ngoài vòng lặp để game không bị giật lag
+        function drawMobaTower(tower) {
+            if (tower.hp <= 0) return;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(tower.x, tower.y, tower.radius, 0, Math.PI * 2);
+            ctx.fillStyle = tower.color;
+            ctx.fill();
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+            
+            // Vẽ thanh máu
+            ctx.fillStyle = '#444';
+            ctx.fillRect(tower.x - 60, tower.y - tower.radius - 20, 120, 12);
+            ctx.fillStyle = tower.color === '#5266ab' ? '#43b581' : '#ff5050';
+            ctx.fillRect(tower.x - 60, tower.y - tower.radius - 20, (tower.hp / tower.maxHp) * 120, 12);
+            ctx.restore();
+        }
+
         const gap = 250; const size = 90;  
         for (let x = 50; x < window.innerWidth; x += gap) {
             for (let y = 50; y < window.innerHeight; y += gap) {
@@ -171,7 +195,8 @@
         function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
         function rectCircleCollide(circle, rect) { return getDistance(circle.x, circle.y, clamp(circle.x, rect.x, rect.x + rect.w), clamp(circle.y, rect.y, rect.y + rect.h)) < circle.radius; }
 
-        const player = new Tank(canvas.width - 60, canvas.height - 60, true);
+        // Đã sửa lại tọa độ khởi tạo hợp lý và truyền biến isPlayer = true
+        const player = new Tank(250, canvas.height - 250, true);
 
         window.addEventListener('keydown', (e) => { if (e.key.toLowerCase() === 'z') player.useSkill(); });
 
@@ -225,26 +250,133 @@
             for (let i = healPacks.length - 1; i >= 0; i--) { healPacks[i].draw(); if (getDistance(player.x, player.y, healPacks[i].x, healPacks[i].y) < player.radius + healPacks[i].radius) { player.hp = Math.min(player.maxHp, player.hp + healPacks[i].healAmount); healPacks.splice(i, 1); } }
             player.draw();
 
+            // --- 1. BOT AI (Đã sắp xếp chuẩn: Máu -> Trụ -> Player -> Exp) ---
             for (let i = bots.length - 1; i >= 0; i--) {
-                const bot = bots[i]; const distToPlayer = getDistance(bot.x, bot.y, player.x, player.y);
+                const bot = bots[i]; 
+                const distToPlayer = getDistance(bot.x, bot.y, player.x, player.y);
                 
-                // Bot vẫn bắn Player nếu Player đang dùng chiêu Bất tử (nhưng do Player có isInvincible nên đạn sẽ không gây dame)
-                if (distToPlayer < 400 && !player.isSpawnProtected) bot.targetEntity = player;
-                else if (targets.length > 0) { let closest = targets[0]; let minDist = getDistance(bot.x, bot.y, closest.x, closest.y); for (let t = 1; t < targets.length; t++) { let d = getDistance(bot.x, bot.y, targets[t].x, targets[t].y); if (d < minDist) { minDist = d; closest = targets[t]; } } bot.targetEntity = closest; }
-                else bot.targetEntity = null;
-                
-                let isFrozen = Date.now() < player.freezeExpiry;
-                if (!isFrozen) {
-                    if (bot.targetEntity) { bot.angle = Math.atan2(bot.targetEntity.y - bot.y, bot.targetEntity.x - bot.x); const distToTarget = getDistance(bot.x, bot.y, bot.targetEntity.x, bot.targetEntity.y); if (distToTarget > 150) tryMove(bot, Math.cos(bot.angle) * bot.speed, Math.sin(bot.angle) * bot.speed); if (distToTarget < 500) bot.shoot(); }
+                let target = null;
+
+                // Ưu tiên 1: Đói máu thì đi tìm máu
+                if (bot.hp < bot.maxHp * 0.7 && typeof healPacks !== 'undefined' && healPacks.length > 0) {
+                    let closestHp = healPacks[0]; let minHpDist = getDistance(bot.x, bot.y, closestHp.x, closestHp.y);
+                    for (let t = 1; t < healPacks.length; t++) { let d = getDistance(bot.x, bot.y, healPacks[t].x, healPacks[t].y); if (d < minHpDist) { minHpDist = d; closestHp = healPacks[t]; } }
+                    target = closestHp;
                 }
                 
-                bot.updateEvolution(); bot.draw(); 
+                // Ưu tiên 2: Phá trụ Ta (Nếu trụ lọt vào tầm nhìn 800px)
+                if (!target && playerTower.hp > 0 && getDistance(bot.x, bot.y, playerTower.x, playerTower.y) < 800) {
+                    target = playerTower;
+                }
+                
+                // Ưu tiên 3: Bắn Player
+                if (!target && distToPlayer < 400 && !player.isSpawnProtected) target = player;
+                
+                // Ưu tiên 4: Cày Exp tiến hoá
+                if (!target && targets.length > 0) {
+                    let closestExp = targets[0]; let minExpDist = getDistance(bot.x, bot.y, closestExp.x, closestExp.y);
+                    for (let t = 1; t < targets.length; t++) { let d = getDistance(bot.x, bot.y, targets[t].x, targets[t].y); if (d < minExpDist) { minExpDist = d; closestExp = targets[t]; } }
+                    target = closestExp;
+                }
+                
+                bot.targetEntity = target;
+                
+                // Kích hoạt di chuyển & bắn
+                let isFrozen = typeof player !== 'undefined' && Date.now() < player.freezeExpiry;
+                if (!isFrozen && bot.targetEntity) {
+                    bot.angle = Math.atan2(bot.targetEntity.y - bot.y, bot.targetEntity.x - bot.x); 
+                    const distToTarget = getDistance(bot.x, bot.y, bot.targetEntity.x, bot.targetEntity.y); 
+                    
+                    let vx = Math.cos(bot.angle) * bot.speed; 
+                    let vy = Math.sin(bot.angle) * bot.speed;
+                    
+                    // Né vật cản
+                    obstacles.forEach(obs => {
+                        let obsCX = obs.x + obs.w/2, obsCY = obs.y + obs.h/2;
+                        let pushRadius = Math.max(obs.w, obs.h) / 2 + bot.radius + 30; 
+                        let distToObs = getDistance(bot.x, bot.y, obsCX, obsCY);
+                        if (distToObs < pushRadius) { 
+                            let pushAng = Math.atan2(bot.y - obsCY, bot.x - obsCX);
+                            vx += Math.cos(pushAng) * bot.speed * 1.5; 
+                            vy += Math.sin(pushAng) * bot.speed * 1.5;
+                        }
+                    });
+
+                    if (distToTarget > 150 || (bot.targetEntity.healAmount || bot.targetEntity.radius < 20)) tryMove(bot, vx, vy); 
+                    if (distToTarget < 500 && !bot.targetEntity.healAmount) bot.shoot(); 
+                }
+                
+                // Bot ăn máu
+                if (typeof healPacks !== 'undefined') {
+                    for (let hp = healPacks.length - 1; hp >= 0; hp--) {
+                        if (getDistance(bot.x, bot.y, healPacks[hp].x, healPacks[hp].y) < bot.radius + healPacks[hp].radius) {
+                            bot.hp = Math.min(bot.maxHp, bot.hp + healPacks[hp].healAmount); 
+                            healPacks.splice(hp, 1);
+                        }
+                    }
+                }
+                
+                if(typeof bot.updateEvolution === 'function') bot.updateEvolution(); 
+                bot.draw(); 
                 
                 if (isFrozen) { ctx.save(); ctx.translate(bot.x, bot.y); ctx.beginPath(); ctx.arc(0, 0, bot.radius + 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0, 200, 255, 0.4)'; ctx.fill(); ctx.strokeStyle = '#00aaff'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); }
                 
-                if (bot.hp <= 0) { player.score += 100; tankScraps += 10; localStorage.setItem('tankScraps', tankScraps); bots.splice(i, 1); }
+                if (bot.hp <= 0) { 
+                    if(player) player.score += 100; 
+                    tankScraps += 10; 
+                    localStorage.setItem('tankScraps', tankScraps); 
+                    bots.splice(i, 1); 
+                }
             }
 
+            // --- 2. GỌI HÀM VẼ TRỤ NHÀ ---
+            drawMobaTower(playerTower);
+            drawMobaTower(botTower);
+
+            // --- 3. TÍNH ĐẠN VA CHẠM TRỤ ---
+            for (let b = bullets.length - 1; b >= 0; b--) {
+                let bullet = bullets[b];
+                
+                // Đã sửa lỗi: Xét dựa vào isPlayer của chủ nhân đạn (owner)
+                // Nếu đạn KHÔNG phải của Player bắn trúng trụ Player
+                if (playerTower.hp > 0 && getDistance(bullet.x, bullet.y, playerTower.x, playerTower.y) < playerTower.radius) {
+                    if (!bullet.owner.isPlayer) { 
+                        playerTower.hp -= bullet.damage || 25; 
+                        bullets.splice(b, 1);
+                        continue;
+                    }
+                }
+                // Nếu đạn của Player bắn trúng trụ Bot
+                if (botTower.hp > 0 && getDistance(bullet.x, bullet.y, botTower.x, botTower.y) < botTower.radius) {
+                    if (bullet.owner.isPlayer) { 
+                        botTower.hp -= bullet.damage || 25;
+                        bullets.splice(b, 1);
+                        continue;
+                    }
+                }
+            }
+
+            // --- 4. XỬ LÝ THẮNG THUA ---
+            if (!isGameOver) {
+                if (playerTower.hp <= 0) {
+                    isGameOver = true; 
+                    playerTower.hp = 0;
+                    let currentScraps = parseInt(localStorage.getItem('tankScraps')) || 0;
+                    currentScraps = Math.max(0, currentScraps - 50); 
+                    localStorage.setItem('tankScraps', currentScraps);
+                    alert("❌ THẤT BẠI! Trụ nhà của bạn đã bị sập. Bạn bị trừ 50 mảnh xe tăng!");
+                    window.location.href = 'index.html'; 
+                } else if (botTower.hp <= 0) {
+                    isGameOver = true; 
+                    botTower.hp = 0;
+                    let currentScraps = parseInt(localStorage.getItem('tankScraps')) || 0;
+                    currentScraps += 50; 
+                    localStorage.setItem('tankScraps', currentScraps);
+                    alert("🎉 CHIẾN THẮNG! Phá huỷ thành công trụ địch. Bạn nhận 50 mảnh xe tăng!");
+                    window.location.href = 'index.html'; 
+                }
+            }
+            
             targets.forEach(t => t.draw());
 
             for (let i = bullets.length - 1; i >= 0; i--) {
@@ -258,7 +390,7 @@
                     if (b.owner.isPlayer) { for (let j = bots.length - 1; j >= 0; j--) { if (getDistance(b.x, b.y, bots[j].x, bots[j].y) < b.radius + bots[j].radius) { bots[j].hp -= b.damage; hit = true; break; } } }
                     else if (getDistance(b.x, b.y, player.x, player.y) < b.radius + player.radius) {
                         if (!player.isInvincible) {
-                            let dmg = b.damage; if (Date.now() < player.adrenalineExpiry) dmg *= 0.3; // Giảm 70% sát thương
+                            let dmg = b.damage; if (Date.now() < player.adrenalineExpiry) dmg *= 0.3;
                             player.hp -= dmg;
                         }
                         hit = true;

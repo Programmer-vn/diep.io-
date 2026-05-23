@@ -6,44 +6,132 @@
     <style>
         body { font-family: sans-serif; background: #2c2f33; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         h1 { color: #7289da; text-shadow: 2px 2px 0 #222; margin-bottom: 10px; }
-        .panel { background: #23272a; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .panel { background: #23272a; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: relative; }
         .btn { padding: 12px 20px; font-size: 16px; font-weight: bold; color: white; background-color: #7289da; border: none; border-bottom: 4px solid #5266ab; border-radius: 4px; cursor: pointer; margin: 10px; width: 140px; }
         .btn:active { transform: scale(0.98); border-bottom: 2px solid #5266ab; }
-        .skill-btn { background-color: #444; border-bottom: 4px solid #222; width: 100%; margin: 5px 0; }
-        .skill-btn.active { background-color: #43b581; border-bottom: 4px solid #2a7a55; }
+        
+        /* Nút mở shop ở sảnh chính */
+        .btn-shop-trigger { background-color: #e67e22; border-bottom: 4px solid #d35400; width: 220px; margin-bottom: 30px; }
+        .btn-shop-trigger:hover { background-color: #f39c12; }
+
+        /* Giao diện nền tối phủ toàn màn hình khi mở shop */
+        .shop-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); justify-content: center; align-items: center; z-index: 1000; }
+        
+        /* Nút đóng shop hình chữ X */
+        .btn-close-shop { position: absolute; top: 12px; right: 15px; background: none; border: none; color: #ff5050; font-size: 22px; font-weight: bold; cursor: pointer; }
+        .btn-close-shop:hover { color: #ff3333; transform: scale(1.1); }
+
+        /* Style cho nút kĩ năng trong shop */
+        .skill-btn { background-color: #444; border-bottom: 4px solid #222; width: 100%; margin: 5px 0; display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; box-sizing: border-box; }
+        .skill-btn.active { background-color: #43b581; border-bottom: 4px solid #2a7a55; cursor: default; }
+        .skill-btn.unlocked { background-color: #00b2e6; border-bottom: 4px solid #008cb3; }
+        .skill-btn.locked { background-color: #ff5050; border-bottom: 4px solid #cc0000; }
+        
+        .skill-name { text-align: left; flex: 1; }
+        .skill-status { font-size: 14px; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; }
     </style>
 </head>
 <body>
     <h1 style="color: #7289da;">DIEP.IO|FANMAKE</h1>
-    <h3 style="color: #7289da;">CHỌN KỸ NĂNG (PHÍM Z)</h3>
-    <div class="panel">
-        <button class="btn skill-btn active" id="btn-glue" onclick="selectSkill('glue')">Bơm Keo (Chắn đạn)</button>
-        <button class="btn skill-btn" id="btn-dash" onclick="selectSkill('dash')">Tốc Biến (Lướt)</button>
-        <button class="btn skill-btn" id="btn-air" onclick="selectSkill('air')">Đạn Xuyên Thấu</button>
-        <button class="btn skill-btn" id="btn-immortal" onclick="selectSkill('immortal')">Bất Tử (5s)</button>
-        <button class="btn skill-btn" id="btn-adrenaline" onclick="selectSkill('adrenaline')">Adrenaline (X2 Tốc, Trâu bò, Hồi máu)</button>
-        <button class="btn skill-btn" id="btn-freeze" onclick="selectSkill('freeze')">Phù Thuỷ Băng (Đóng băng địch)</button>
-        <p style="color: #bbb; font-size: 14px; margin-top: 10px;">Mảnh xe tăng: <span id="scraps" style="color: #ff9800; font-weight: bold;">0</span></p>
-    </div>
+    
+    <button class="btn btn-shop-trigger" onclick="openShop()">🛒 CỬA HÀNG KỸ NĂNG</button>
 
-    <h1>CHỌN MAP</h1>
+    <h1>CHỌN MAP CHƠI</h1>
     <div>
-        <button class="btn" onclick="window.location.href='chessmap.html'">Map Bàn Cờ</button>
+        <button class="btn" onclick="window.location.href='chessMap.html'">Map Bàn Cờ</button>
         <button class="btn" onclick="window.location.href='classesMap.html'">Map Tự Do</button>
     </div>
 
+    <div id="shopModal" class="shop-overlay">
+        <div class="panel">
+            <button class="btn-close-shop" onclick="closeShop()">✕</button>
+            
+            <h3 style="color: #fbd46d; margin-top: 5px; margin-bottom: 15px;">🛒 CỬA HÀNG KỸ NĂNG (PHÍM Z)</h3>
+            <div id="skill-list"></div>
+            <p style="color: #bbb; font-size: 16px; margin-top: 15px; margin-bottom: 5px;">
+                Mảnh xe tăng của bạn: <span id="scraps" style="color: #ff9800; font-weight: bold; font-size: 20px;">0</span>
+            </p>
+        </div>
+    </div>
+
     <script>
-        document.getElementById('scraps').innerText = localStorage.getItem('tankScraps') || 0;
+        const skillsData = [
+            { id: 'glue', name: 'Bơm Keo (Chắn đạn)', price: 0 },
+            { id: 'dash', name: 'Tốc Biến (Lướt)', price: 100 },
+            { id: 'air', name: 'Đạn Xuyên Thấu', price: 150 },
+            { id: 'immortal', name: 'Bất Tử (5s)', price: 200 },
+            { id: 'adrenaline', name: 'Adrenaline (Buff)', price: 200 },
+            { id: 'freeze', name: 'Phù Thuỷ Băng', price: 250 }
+        ];
+
+        let scraps = parseInt(localStorage.getItem('tankScraps')) || 0;
+        let unlockedSkills = JSON.parse(localStorage.getItem('unlockedSkills')) || ['glue'];
         let currentSkill = localStorage.getItem('selectedSkill') || 'glue';
-        
-        function selectSkill(skill) {
-            currentSkill = skill;
-            localStorage.setItem('selectedSkill', skill);
-            document.querySelectorAll('.skill-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + skill).classList.add('active');
+
+        function openShop() {
+            document.getElementById('shopModal').style.display = 'flex';
+            renderShop();
         }
         
-        selectSkill(currentSkill);
+        function closeShop() {
+            document.getElementById('shopModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('shopModal');
+            if (event.target == modal) { closeShop(); }
+        }
+
+        function renderShop() {
+            document.getElementById('scraps').innerText = scraps;
+            const list = document.getElementById('skill-list');
+            list.innerHTML = '';
+
+            skillsData.forEach(skill => {
+                const isEquipped = currentSkill === skill.id;
+                const isUnlocked = unlockedSkills.includes(skill.id);
+                
+                const btn = document.createElement('button');
+                btn.className = 'btn skill-btn';
+                
+                let statusText = '';
+                if (isEquipped) {
+                    btn.classList.add('active');
+                    statusText = 'Đang dùng';
+                } else if (isUnlocked) {
+                    btn.classList.add('unlocked');
+                    statusText = 'Trang bị';
+                    btn.onclick = () => equipSkill(skill.id);
+                } else {
+                    btn.classList.add('locked');
+                    statusText = `Mua (${skill.price})`;
+                    btn.onclick = () => buySkill(skill.id, skill.price);
+                }
+
+                btn.innerHTML = `<span class="skill-name">${skill.name}</span> <span class="skill-status">${statusText}</span>`;
+                list.appendChild(btn);
+            });
+        }
+
+        function buySkill(id, price) {
+            if (scraps >= price) {
+                scraps -= price;
+                unlockedSkills.push(id);
+                localStorage.setItem('tankScraps', scraps);
+                localStorage.setItem('unlockedSkills', JSON.stringify(unlockedSkills));
+                equipSkill(id); 
+            } else {
+                alert("Không đủ mảnh xe tăng rồi bro! Chịu khó vào map cày tí nhé.");
+            }
+        }
+
+        function equipSkill(id) {
+            currentSkill = id;
+            localStorage.setItem('selectedSkill', id);
+            renderShop();
+        }
+
+        renderShop();
     </script>
 </body>
 </html>
